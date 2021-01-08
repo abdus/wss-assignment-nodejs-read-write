@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width; initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <title>People's Directory</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        max-width: 100vw;
+        overflow: auto;
+      }
+
+      table {
+        border-collapse: collapse;
+      }
+
+      tr,
+      td {
+        border: 1px solid lightgray;
+        padding: 0.4rem 0.8rem;
+      }
+
+      form {
+        margin-top: 4rem;
+        max-width: 20rem;
+        display: flex;
+        flex-direction: column;
+      }
+
+      form label {
+        flex-direction: column;
+        display: flex;
+        width: 100%;
+        margin: 1rem 0;
+      }
+
+      input,
+      button {
+        padding: 0.4rem 1rem;
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <input type="text" id="search" placeholder="Search by name or email" />
+    <table></table>
+
+    <form>
+      <h3>Add New User</h3>
+      <label>
+        <span>Email</span>
+        <input type="email" required name="email" />
+      </label>
+      <label>
+        <span>Name</span>
+        <input type="text" required name="name" />
+      </label>
+      <label>
+        <span>Phone</span>
+        <input type="number" required name="phone" />
+      </label>
+
+      <button type="submit">Add User</button>
+    </form>
+
+    <script>
+      "use strict";
+
+      async function getAll(q = "") {
+        const raw = await window.fetch(`/api/users/?q=${q}`);
+
+        if (!raw.ok) return [];
+        return (await raw.json()).data;
+      }
+
+      async function addNew(form) {
+        const formData = new FormData(form);
+        const body = {
+          phone: formData.get("phone"),
+          name: formData.get("name"),
+          email: formData.get("email"),
+        };
+
+        await fetch("/api/users/add", {
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        window.location.reload();
+      }
+
+      function generateTableRow(data, root) {
+        const td = document.createElement("td");
+        td.innerText = data;
+        root.appendChild(td);
+      }
+
+      function renderData(data) {
+        const table = document.querySelector("table");
+        const thead = `
+        <thead>
+          <td>ID</td>
+          <td>Name</td>
+          <td>Email</td>
+          <td>Phone</td>
+          <td>Created At</td>
+        </thead>`;
+
+        const fragment = document.createDocumentFragment();
+        table.innerHTML = "";
+        table.innerHTML = thead;
+
+        for (let d of data) {
+          const tr = document.createElement("tr");
+
+          generateTableRow(d._id, tr);
+          generateTableRow(d.name, tr);
+          generateTableRow(d.email, tr);
+          generateTableRow(d.phone, tr);
+          generateTableRow(d.createdAt, tr);
+
+          fragment.appendChild(tr);
+        }
+
+        table.appendChild(fragment);
+      }
+
+      let timer;
+      function throttle(fn, delay) {
+        if (timer) return;
+
+        timer = setTimeout(() => {
+          fn();
+          timer = null;
+        }, delay);
+      }
+
+      (async () => {
+        const form = document.querySelector("form");
+        const people = await getAll();
+
+        renderData(people);
+
+        form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          addNew(form);
+        });
+
+        async function searchData() {
+          const people = await getAll(document.querySelector("#search").value);
+          renderData(people);
+        }
+
+        document.querySelector("#search").addEventListener("keydown", (e) => {
+          console.log(e);
+          throttle(searchData, 1);
+        });
+      })();
+    </script>
+  </body>
+</html>
